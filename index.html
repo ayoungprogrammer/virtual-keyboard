@@ -1,0 +1,304 @@
+<html>
+<body>
+
+<script src = "https://js.leapmotion.com/leap-0.6.0-beta1.min.js" ></script>
+<script src = "lib/three.min.js"                                  ></script>
+<script src = "lib/stats.min.js"                                  ></script>
+<script src = "lib/ConnectedHand.js"                              ></script>
+	
+<script>
+
+  // Global Variables for THREE.JS
+  var container , camera, scene, renderer , stats, text_box,textNode,str;
+
+  // Global variable for leap
+  var frame, controller;
+
+  var keys;
+  var backspace_key;
+
+  // Setting up how big we want the scene to be
+  var sceneSize = 100;
+
+  var leftHand , rightHand;
+
+
+  // Get everything set up
+  init();
+
+  // Start the frames rolling
+  animate();
+
+
+  function makeKey(l,w,h,x,y,z){
+    var cube_geo = new THREE.CubeGeometry(l,w,h);
+    var cube_mat = new THREE.MeshBasicMaterial({color:0xff0000});
+    var cube = new THREE.Mesh(cube_geo,cube_mat);
+    cube.position.y = y;
+    cube.position.x = x;
+    cube.position.z = z;
+    cube.rotation.x=0.01;
+    cube.rotation.y=0;
+    return cube;
+  }
+
+  function init(){
+
+    controller = new Leap.Controller();
+
+    scene = new THREE.Scene();
+    
+    camera = new THREE.PerspectiveCamera( 
+      50 ,
+      window.innerWidth / window.innerHeight,
+      sceneSize / 100 ,
+      sceneSize * 4
+    );
+
+    str = '';
+
+    // placing our camera position so it can see everything
+    camera.position.z = sceneSize-20;
+    camera.position.y = 50;
+
+      
+    camera.lookAt(new THREE.Vector3(0,-60,-150));
+
+    // Getting the container in the right location
+    container = document.createElement( 'div' );
+
+    container.style.width      = '100%';
+    container.style.height     = '100%';
+    container.style.position   = 'absolute';
+    container.style.top        = '0px';
+    container.style.left       = '0px';
+    container.style.background = '#000';
+
+
+    document.body.appendChild( container );
+
+
+    //Text typed
+    text_box = document.createElement('div');
+    text_box.style.width = '100%';
+    text_box.style.height = '50px';
+    text_box.style.position = 'absolute';
+    text_box.style.top = '100px'
+    text_box.style.zIndex = '999';
+    text_box.style['text-align'] = 'center';
+    text_box.style.color = "white";
+    textNode = document.createTextNode('');
+    text_box.appendChild(textNode);
+    document.body.appendChild(text_box);
+
+    // Getting the stats in the right position
+    stats = new Stats();
+
+    stats.domElement.style.position  = 'absolute';
+    stats.domElement.style.bottom    = '0px';
+    stats.domElement.style.right     = '0px';
+    stats.domElement.style.zIndex    = '999';
+
+    document.body.appendChild( stats.domElement );
+
+
+    // Setting up our Renderer
+    renderer = new THREE.WebGLRenderer();
+
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    container.appendChild( renderer.domElement );
+
+
+    // Making sure our renderer is always the right size
+    window.addEventListener( 'resize', onWindowResize , false );
+
+    
+   
+    leftHand = new ConnectedHand( controller );
+    leftHand.addToScene( scene );
+    leftHand.createMesh();
+
+    rightHand = new ConnectedHand( controller );
+    rightHand.addToScene( scene );
+    rightHand.createMesh();
+
+    
+    text="QWERTYUIOPASDFGHJKL;ZXCVBNM,./ ";
+
+    
+
+    
+
+
+    controller.connect();
+
+    keys = [];
+
+    for(var i=0;i<10;i++){
+      var key = makeKey(15,5,15,(i-5)*20,-20,-150);
+	    scene.add(key);
+	    keys.push(key);
+	}
+	for(var i=0;i<10;i++){
+	    var key = makeKey(15,5,15,(i-5)*20,-40,-125);
+      scene.add(key);
+	    keys.push(key);
+	}
+	for(var i=0;i<10;i++){
+      var key = makeKey(15,5,15,(i-5)*20,-60,-100);
+      scene.add(key);
+      keys.push(key);
+	}
+
+
+  
+
+  for(var i=0;i<keys.length;i++){
+    var sprite = makeTextSprite(text.charAt(i),{'key':keys[i]});
+    scene.add(sprite);
+  }
+
+  backspace_key = makeKey(50,5,15,30,0,-175);
+  scene.add(backspace_key);
+  var sprite = makeTextSprite('Backspace',{'key':backspace_key});
+  sprite.position.set(backspace_key.position.x-10,backspace_key.position.y+10,backspace_key.position.z);
+  scene.add(sprite);
+
+  var space_key = makeKey(50,5,15,0,-70,-75);
+    scene.add(space_key);
+    keys.push(space_key);
+    var sprite = makeTextSprite('Space',{'key':space_key});
+    
+  scene.add(sprite);
+  }
+
+
+  function animate(){
+
+  	
+
+    // Tells us which hand to update with
+    leftHand.update( 'left' );
+    rightHand.update( 'right' );
+
+    for(var i=0;i<keys.length;i++){
+      var prev = keys[i].pressed;
+    	keys[i].pressed = false;
+	    leftHand.onTouch(keys[i]);
+	    rightHand.onTouch(keys[i]);
+	    if(keys[i].pressed){
+	      keys[i].material.color.setHex(0x00ff00);
+	    }else {
+        if(prev){
+          str+=text.charAt(i);
+          textNode.nodeValue = str;
+        }
+	      keys[i].material.color.setHex(0xff0000);
+	       //keys[i].material.color.setHex(0xff9900);
+	    }
+	 }
+
+   var prev = backspace_key.pressed;
+      backspace_key.pressed = false;
+      leftHand.onTouch(backspace_key);
+      rightHand.onTouch(backspace_key);
+      if(backspace_key.pressed){
+        backspace_key.material.color.setHex(0x00ff00);
+      }else {
+        if(prev){
+          if(str.length>0){
+            str = str.substr(0,str.length-1);
+            textNode.nodeValue = str;
+          }
+        }
+        backspace_key.material.color.setHex(0xff0000);
+      }
+
+
+    stats.update();
+
+    renderer.render( scene , camera );
+
+    requestAnimationFrame( animate );
+
+  }
+
+  // Resets the renderer to be the proper size
+  function onWindowResize(){
+
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize( window.innerWidth, window.innerHeight );
+
+  }
+
+  function makeTextSprite( message, parameters )
+{
+  console.log(message);
+  if ( parameters === undefined ) parameters = {};
+  
+  var fontface = parameters.hasOwnProperty("fontface") ? 
+    parameters["fontface"] : "Arial";
+  
+  var fontsize = parameters.hasOwnProperty("fontsize") ? 
+    parameters["fontsize"] : 18;
+  
+  var borderThickness = parameters.hasOwnProperty("borderThickness") ? 
+    parameters["borderThickness"] : 4;
+  
+  var borderColor = parameters.hasOwnProperty("borderColor") ?
+    parameters["borderColor"] : { r:0, g:0, b:0, a:1.0 };
+  
+  var backgroundColor = parameters.hasOwnProperty("backgroundColor") ?
+    parameters["backgroundColor"] : { r:255, g:255, b:255, a:1.0 };
+
+  var spriteAlignment = THREE.SpriteAlignment.topLeft;
+    
+  var canvas = document.createElement('canvas');
+  var context = canvas.getContext('2d');
+  context.font = "Bold " + fontsize + "px " + fontface;
+    
+  // get size data (height depends only on font size)
+  var metrics = context.measureText( message );
+  var textWidth = metrics.width;
+  
+  // background color
+  context.fillStyle   = "rgba(" + backgroundColor.r + "," + backgroundColor.g + ","
+                  + backgroundColor.b + "," + backgroundColor.a + ")";
+  // border color
+  context.strokeStyle = "rgba(" + borderColor.r + "," + borderColor.g + ","
+                  + borderColor.b + "," + borderColor.a + ")";
+
+  context.lineWidth = borderThickness;
+  //roundRect(context, borderThickness/2, borderThickness/2, textWidth + borderThickness, fontsize * 1.4 + borderThickness, 6);
+  // 1.4 is extra height factor for text below baseline: g,j,p,q.
+  
+  // text color
+  context.fillStyle = "rgba(255, 255, 255, 1.0)";
+
+  context.fillText( message, borderThickness, fontsize + borderThickness);
+  
+  // canvas contents will be used for a texture
+  var texture = new THREE.Texture(canvas) 
+  texture.needsUpdate = true;
+
+  var spriteMaterial = new THREE.SpriteMaterial( 
+    { map: texture, useScreenCoordinates: false, alignment: spriteAlignment } );
+  var sprite = new THREE.Sprite( spriteMaterial );
+  sprite.scale.set(100,50,1.0);
+
+  var key = parameters['key'];
+
+  sprite.position.set(key.position.x,key.position.y+10,key.position.z);
+
+  return sprite;  
+}
+
+
+</script>
+
+
+</body>
+
+</html>
